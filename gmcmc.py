@@ -47,6 +47,7 @@ def rwMetropolis(x_n, h_array, y, G, sigmas, inDomainG,
     # If None, the local_sampler corresponds to the global numpy sampler,
     # otherwise is one given from the complete chain, so that each chain
     # had a local random number generator, allowing parallelization
+#    print("Starting energy: ", U(x_n, y, G, sigmas))
     d = len(x_n)
     cov_matrix = np.identity(d)
     cov_matrix = np.array([cov_matrix[i] * h_array[i] for i in range(d)])
@@ -58,11 +59,17 @@ def rwMetropolis(x_n, h_array, y, G, sigmas, inDomainG,
     while(not inDomainG(x_n1)):
             x_n1 = x_n+local_sampler.multivariate_normal(np.zeros(d),cov_matrix)
             attempts += 1
+#            print("Current attempt: ", attempts)
     if (verbose and (attempts > 20)):
         print("Warning: more than 20 attempts to stay in the domain")
 
+#    print("Proposed point: ", x_n1)
+#    print("With energy: ", U(x_n1, y, G, sigmas))
+#    input("premi invio")
+
     log_alpha = min(U(x_n, y, G, sigmas) - U(x_n1, y, G, sigmas), 0)
     if log(local_sampler.uniform()) < log_alpha:
+#        print("Accetto")
         return x_n1, 1
     else:
         return x_n, 0
@@ -137,8 +144,9 @@ def chain_rwMetropolis(start_x, h, y, G, sigmas, inDomainG, n_samples,
         if (verbose and (i % 500 == 0)):
             print("Sample #", i)
             print(x_samples[i])
-            #print("Accepted: ", accept_rate)
-
+            print("Accepted: ", accept_rate)
+        if (not verbose and (i %5000 ==0)):
+            print(".", end=' ')
     accept_rate = int(accept_rate * 100. / (n_samples * skip_rate))
 
     if (verbose):

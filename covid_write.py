@@ -4,12 +4,14 @@ import gmcmc
 import sys
 from numpy import exp, log
 
-np.random.seed(0)
+num_samples = 50000
+h_metropolis_array = np.array([20000, 1, 1, 10])
+np.random.seed(2)
 # This is the number of observation days
 global_T = 21
 m = 4
 d = global_T
-
+MAXVICTIMS = 50000
 
 # Simple exmplicit general logistic solution
 def Xt (Q, q, v, X0, t):
@@ -26,13 +28,13 @@ def G(x):
 
 # Checking now the domain of G is taylored on this problem of dimension 4
 def inDomainG(x):
-    if x[0] < 500 or x[0] > 50000:
+    if x[0] < 500 or x[0] > MAXVICTIMS:
         return False
     if x[1] < 0 or x[1] > 2:
         return False
     if x[2] < 0 or x[2] > 2:
         return False
-    if x[3] < 100 or x[3] > 5000:
+    if x[3] < 100 or x[3] > MAXVICTIMS:
         return False
     return True
 
@@ -68,7 +70,6 @@ def jacobianG(x):
     return res.reshape(global_T, 4)
 
 TOY_MODEL = True
-
 if TOY_MODEL:
     tmpx0 = np.random.uniform(100, 20000)
     true_x = np.array([tmpx0 + np.random.uniform(500,25000),
@@ -91,20 +92,22 @@ else:
     cov_matrix = np.array([cov_matrix[i] * sigmas[i] for i in range(d)])
 
 
-h_metropolis_array = np.array([10, 0.01, 0.01, 5])
-num_samples = 5000
-skip_n_samples = 5 # With 1, no samples are skipped
+skip_n_samples = 1 # With 1, no samples are skipped
 parallel = True
-conv_samples = 500
+conv_samples = 1000
 
 #### --- end of the common section with read ---- #
 SAMPLING_SINGLE_CHAIN = True #False
-SAMPLING_TO_CHECK_CONVERGENCE = True #alse #True
+SAMPLING_TO_CHECK_CONVERGENCE = False #True #alse #True
 
 
 if SAMPLING_SINGLE_CHAIN:
     print("Constructing a single full chain")
-    X, runtime, _ , _ = gmcmc.chain_rwMetropolis(np.array([1000, 1, 1, 100]),
+    start_x = np.array([np.random.uniform(y[-1], MAXVICTIMS),
+                    np.random.uniform(0, 2),
+                    np.random.uniform(0, 2), y[0]])
+    print("Starting point: ", start_x)
+    X, runtime, _ , _ = gmcmc.chain_rwMetropolis(start_x,
        h_metropolis_array, y, G, sigmas, inDomainG, num_samples, skip_n_samples)
 
     info_str = "INFOSIMU: chain_rwMetropolis, h = " + str(h_metropolis_array)+\
@@ -128,7 +131,11 @@ if SAMPLING_SINGLE_CHAIN:
        
 if SAMPLING_TO_CHECK_CONVERGENCE:
     print("Convergence analysis for the Markov Chain")
-    X, a_rate = gmcmc.convergenceMetropolis(np.array([1000, 1, 1, 100]),
+    start_x = np.array([np.random.uniform(y[-1], MAXVICTIMS),
+                    np.random.uniform(0, 2),
+                    np.random.uniform(0, 2), y[0]])
+    print("Starting point ", start_x)
+    X, a_rate = gmcmc.convergenceMetropolis(start_x,
         h_metropolis_array,y, G, sigmas, inDomainG, num_samples, skip_n_samples,
         conv_samples, parallel)
 
