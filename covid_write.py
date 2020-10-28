@@ -1,14 +1,15 @@
-# Modeling the Coronavirus fatal rate by using a generalized logistic map 
 import numpy as np
-import sys
 import matplotlib.pyplot as plt
 import gmcmc
-from numpy import exp
+import sys
+from numpy import exp, log
 
 np.random.seed(0)
-
 # This is the number of observation days
 global_T = 21
+m = 4
+d = global_T
+
 
 # Simple exmplicit general logistic solution
 def Xt (Q, q, v, X0, t):
@@ -23,14 +24,9 @@ def G(x):
         res.append(Xt(x[0], x[1], x[2], x[3], i))
     return np.asanyarray(res)
 
-def jacobianG(x):
-    print("ERROR: JACOBIAN STILL TO IMPLEMENT")
-    return 0
-
-
 # Checking now the domain of G is taylored on this problem of dimension 4
 def inDomainG(x):
-    if x[0] < 100 or x[0] > 5000:
+    if x[0] < 500 or x[0] > 50000:
         return False
     if x[1] < 0 or x[1] > 2:
         return False
@@ -40,28 +36,68 @@ def inDomainG(x):
         return False
     return True
 
-# m = 3, d = 2
-m = 4
-d = global_T
-true_x = np.array([3000., 0.2, 0.5, 200.])
-sigmas = np.ones(global_T) * 0.5
+def gradX(Q, q, v, X0, t):
+    # For a FIXED t, take the partial derivatives w.r.t Q, then q, v, X0
+    # and store each in the i-th component
+    # Some local variables will be very useful as a shortcut
+    gradient = np.zeros(4)
+    A = (Q / X0 - 1.) ** v
+    D = (1 + A*exp(-q * t))
+    # w.r.t Q
+    gradient[0] = \
+    D ** (1./v) - Q * (D**((1-v)/v)) * exp(-q*t)/X0 * ((Q/X0 -1)**(v-1))
+    gradient[0] /= D**(2/v)
+    # w.r.t q
+    gradient[1] = (t/v) * exp(-q*t) * A * Q * (D ** (-(1+v)/v))
+    # w.r.t v
+    star3 = exp(v * log(Q/X0 -1) - q*t) * log(Q/X0 -1)
+    star2 = star3 / (1 + exp(v * log(Q/X0 -1) - q*t))
+    right = log(1 + exp(v*log(Q/X0 -1) * q * t))/(v**2)
+    star1 = right - star2/v
+    star0 = Q*exp(-1/v * log(1 + exp(v*log(Q/X0 -1) -q*t)))
+    gradient[2] = star0 * star1
+    # w.r.t X0
+    gradient[3] = ((Q/X0) **2) * exp(-q*t) *((Q/X0 -1) ** v-1) * (D**(-(1+v)/v))
+    return gradient
 
-cov_matrix = np.identity(d)
-cov_matrix = np.array([cov_matrix[i] * sigmas[i] for i in range(d)])
-y = G(true_x) + np.random.multivariate_normal(np.zeros(d), cov_matrix)
+# JacobianG should be implemented now, but depends on gradientX above TO DO
+# The only "true" step to implement is the jacobian of G
+def jacobianG(x):
+    # Memento: x[0] = Q, x[1] = q, x[2] = v, x[3] = X0
+    res = np.asanyarray([gradX(x[0],x[1],x[2],x[3],i) for i in range(global_T)])
+    return res.reshape(global_T, 4)
 
-print("True x: ", true_x)
-print("y = ", y)
-#input("-- press a key to continue---")
-#quit()
+TOY_MODEL = True
 
-h_metropolis_array = np.array([5, 0.001, 0.005, 5])
-num_samples = 50000
+if TOY_MODEL:
+    tmpx0 = np.random.uniform(100, 20000)
+    true_x = np.array([tmpx0 + np.random.uniform(500,25000),
+                    np.random.uniform(0, 2),
+                    np.random.uniform(0, 2), tmpx0])
+    print("True x: ", true_x)
+    y = G(true_x)
+    print("y = ", y)
+    sigmas = y / 20.
+    cov_matrix = np.identity(d)
+    cov_matrix = np.array([cov_matrix[i] * sigmas[i] for i in range(d)])
+    y = G(true_x) + np.random.multivariate_normal(np.zeros(d), cov_matrix)
+    print("Perturbed y: ", y)
+else:
+    import pandas as pd
+    df = pd.read_csv("italy_10Apr.csv")
+    y = np.asanyarray(df['Victims'])
+    sigmas = y / 20.
+    cov_matrix = np.identity(d)
+    cov_matrix = np.array([cov_matrix[i] * sigmas[i] for i in range(d)])
+
+
+h_metropolis_array = np.array([10, 0.01, 0.01, 5])
+num_samples = 5000
 skip_n_samples = 5 # With 1, no samples are skipped
 parallel = True
+conv_samples = 500
 
-conv_samples = 1000
-
+#### --- end of the common section with read ---- #
 SAMPLING_SINGLE_CHAIN = True #False
 SAMPLING_TO_CHECK_CONVERGENCE = True #alse #True
 
