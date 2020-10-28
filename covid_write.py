@@ -55,12 +55,12 @@ print("y = ", y)
 #input("-- press a key to continue---")
 #quit()
 
-h_metropolis_array = np.array([10, 0.01, 0.05, 5])
-num_samples = 5000
+h_metropolis_array = np.array([5, 0.001, 0.005, 5])
+num_samples = 50000
 skip_n_samples = 5 # With 1, no samples are skipped
 parallel = True
 
-conv_samples = 500
+conv_samples = 1000
 
 SAMPLING_SINGLE_CHAIN = True #False
 SAMPLING_TO_CHECK_CONVERGENCE = True #alse #True
